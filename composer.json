@@ -1,0 +1,27 @@
+{
+    "name": "nongbit/codeigniter-datatable",
+    "description": "Integrate DataTable to CodeIgniter 4",
+    "keywords": ["codeigniter", "datatable"],
+    "authors": [
+        {
+            "name": "Nongbit"
+        }
+    ],
+    "license": "MIT",
+    "type": "library",
+    "homepage": "https://github.com/nongbit/codeigniter-datatable#readme",
+    "support": {
+        "issues": "https://github.com/nongbit/codeigniter-datatable/issues",
+        "source": "https://github.com/nongbit/codeigniter-datatable"
+    },
+    "require": {
+        "codeigniter4/framework": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nongbit\\DataTable\\": "src/"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
