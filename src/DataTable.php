@@ -8,62 +8,49 @@ use Config\Services;
 class DataTable
 {
     protected static $model;
-    protected static $draw, $start, $length, $search, $orders, $columns;
+    protected static $request;
 
     public static function get(Model $model): array
     {
-        self::init($model);
+        self::$model = $model;
+        self::$request = Services::request()->getGet();
 
         self::filtering();
         self::ordering();
 
-        $recordsFiltered = count(self::$model->builder()->get(null, 0, false)->getResult());
-        $records = self::$model->findAll(self::$length, self::$start);
-        $recordsTotal = count($model->findAll());
+        $filteredRecords = count(self::$model->builder()->get(self::$request['length'], self::$request['start'], false)->getResult());
+        $totalRecords = count(self::$model->findAll());
+        $records = self::$model->findAll(self::$request['length'], self::$request['start']);
 
         return [
-            'draw' => self::$draw,
-            'recordsTotal' => $recordsTotal,
-            'recordsFiltered' => $recordsFiltered,
-            'data' => array_values($records),
+            'draw' => self::$request['draw'],
+            'recordsFiltered' => $filteredRecords,
+            'recordsTotal' => $totalRecords,
+            'data' => $records,
+            'request' => self::$request,
         ];
     }
 
-    public static function init(Model $model): void
+    protected static function filtering(): void
     {
-        self::$model = $model;
-        self::$draw = Services::request()->getGet('draw');
-        self::$start = Services::request()->getGet('start');
-        self::$length = Services::request()->getGet('length');
-        self::$search = Services::request()->getGet('search');
-        self::$orders = Services::request()->getGet('order');
-        self::$columns = Services::request()->getGet('columns');
+        if (empty(self::$request['search']['value'])) return;
+
+        foreach (self::$request['columns'] as $column) {
+            if ($column['searchable'] !== 'true') continue;
+
+            self::$model->orLike(!empty($column['name']) ? $column['name'] : $column['data'], self::$request['search']['value']);
+        }
     }
 
-    public static function filtering(): ?Model
+    protected static function ordering(): void
     {
-        if (empty(self::$search['value'])) return self::$model;
+        if (!isset(self::$request['order'])) return;
 
-        foreach (self::$columns as $column) {
-            if ($column['searchable'] === 'true') {
-                self::$model->orLike(!empty($column['name']) ? $column['name'] : $column['data'], self::$search['value']);
-                if (! empty($column['search']['value'])) {
-                    self::$model->like(!empty($column['name']) ? $column['name'] : $column['data'], $column['search']['value']);
-                }
-            }
+        foreach (self::$request['order'] as $order) {
+            $column = self::$request['columns'][$order['column']];
+
+            if ($column['orderable'] != 'true') continue;
+            self::$model->orderBy(!empty($column['name']) ? $column['name'] : $column['data'], $order['dir']);
         }
-
-        return self::$model;
-    }
-
-    public static function ordering(): Model
-    {
-        foreach (self::$orders as $order) {
-            if (self::$columns[$order['column']]['orderable'] === 'true') {
-                self::$model->orderBy(!empty(self::$columns[$order['column']]['name']) ? self::$columns[$order['column']]['name'] : self::$columns[$order['column']]['data'], $order['dir']);
-            }
-        }
-
-        return self::$model;
     }
 }
