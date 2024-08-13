@@ -8,49 +8,77 @@ use Config\Services;
 class DataTable
 {
     protected static $model;
-    protected static $request;
+    protected static $draw, $start, $length, $search, $orders, $columns;
+    protected static $callbacks;
 
-    public static function get(Model $model): array
+    public static function get(Model $model, array $callbacks): array
     {
-        self::$model = $model;
-        self::$request = Services::request()->getGet();
+        self::init($model, $callbacks);
 
         self::filtering();
         self::ordering();
 
-        $filteredRecords = count(self::$model->builder()->get(self::$request['length'], self::$request['start'], false)->getResult());
-        $totalRecords = count(self::$model->findAll());
-        $records = self::$model->findAll(self::$request['length'], self::$request['start']);
+        $recordsFiltered = count(self::$model->builder()->get(null, 0, false)->getResult());
+        $records = self::$model->findAll(self::$length, self::$start);
+        $recordsTotal = count($model->findAll());
+
+        self::callbacks($records);
 
         return [
-            'draw' => self::$request['draw'],
-            'recordsFiltered' => $filteredRecords,
-            'recordsTotal' => $totalRecords,
-            'data' => $records,
-            'request' => self::$request,
+            'draw' => self::$draw,
+            'recordsTotal' => $recordsTotal,
+            'recordsFiltered' => $recordsFiltered,
+            'data' => array_values($records),
         ];
     }
 
-    protected static function filtering(): void
+    protected static function init(Model $model, array $callbacks): void
     {
-        if (empty(self::$request['search']['value'])) return;
+        self::$model = $model;
+        self::$draw = Services::request()->getGet('draw');
+        self::$start = Services::request()->getGet('start');
+        self::$length = Services::request()->getGet('length');
+        self::$search = Services::request()->getGet('search');
+        self::$orders = Services::request()->getGet('order');
+        self::$columns = Services::request()->getGet('columns');
 
-        foreach (self::$request['columns'] as $column) {
-            if ($column['searchable'] !== 'true') continue;
-
-            self::$model->orLike(!empty($column['name']) ? $column['name'] : $column['data'], self::$request['search']['value']);
-        }
+        self::$callbacks = $callbacks;
     }
 
-    protected static function ordering(): void
+    protected static function filtering(): ?Model
     {
-        if (!isset(self::$request['order'])) return;
+        if (empty(self::$search['value'])) return self::$model;
 
-        foreach (self::$request['order'] as $order) {
-            $column = self::$request['columns'][$order['column']];
+        foreach (self::$columns as $column) {
+            if ($column['searchable'] === 'true') {
+                self::$model->orLike(!empty($column['name']) ? $column['name'] : $column['data'], self::$search['value']);
+                if (! empty($column['search']['value'])) {
+                    self::$model->like(!empty($column['name']) ? $column['name'] : $column['data'], $column['search']['value']);
+                }
+            }
+        }
 
-            if ($column['orderable'] != 'true') continue;
-            self::$model->orderBy(!empty($column['name']) ? $column['name'] : $column['data'], $order['dir']);
+        return self::$model;
+    }
+
+    protected static function ordering(): Model
+    {
+        foreach (self::$orders as $order) {
+            if (self::$columns[$order['column']]['orderable'] === 'true') {
+                self::$model->orderBy(!empty(self::$columns[$order['column']]['name']) ? self::$columns[$order['column']]['name'] : self::$columns[$order['column']]['data'], $order['dir']);
+            }
+        }
+
+        return self::$model;
+    }
+
+    protected static function callbacks(array $records)
+    {
+        foreach (self::$callbacks as $field => $callback) {
+            foreach ($records as $record) {
+                $data = (object) $record;
+                $record->$field = $callback($record->$field, $data);
+            }
         }
     }
 }
