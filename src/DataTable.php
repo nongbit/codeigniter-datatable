@@ -63,6 +63,8 @@ class DataTable
 
     protected static function ordering(): Model
     {
+        if (empty(self::$orders)) return self::$model;
+
         foreach (self::$orders as $order) {
             if (self::$columns[$order['column']]['orderable'] === 'true') {
                 self::$model->orderBy(!empty(self::$columns[$order['column']]['name']) ? self::$columns[$order['column']]['name'] : self::$columns[$order['column']]['data'], $order['dir']);
