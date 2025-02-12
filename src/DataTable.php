@@ -19,7 +19,7 @@ class DataTable
         self::ordering();
 
         $recordsFiltered = count(self::$model->builder()->get(null, 0, false)->getResult());
-        $records = self::$model->findAll(self::$length, self::$start);
+        $records = self::$length > 0 ? self::$model->findAll(self::$length, self::$start) : self::$model->findAll();
         $recordsTotal = count($model->findAll());
 
         self::callbacks($records);
