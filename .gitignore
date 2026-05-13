@@ -1,0 +1,15 @@
+# Editor / IDE
+.idea/
+.vscode/
+*.swo
+*.swp
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# PHPUnit / testing
+/.phpunit.result.cache
+/phpunit.xml
+.clover
+.phpcs-cache
